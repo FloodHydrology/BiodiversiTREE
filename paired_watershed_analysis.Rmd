@@ -1,0 +1,159 @@
+---
+title: "Paired Wateshed Exploratory Analysis"
+output:
+  html_document:
+    df_print: paged
+    toc: yes
+      toc_float: yes
+---
+
+The goal of this workbook is to explore impact of landuse change on downstream hydrology at the SERC biodiversiTREE site near Edgewater, MD. Here, we utilize longterm flow data from two "paired" watersheds (watersheds 109 and 110). Watershed 109 ecompasses most of the biodiversiTREE experiment, where landuse changed from agricultural [e.g., corn field] to forested in 2013, and watershed 110 is a forested watershed that serves as a control.  
+
+#Setup Workspace
+This code chunk organizes the workspace. 
+```{r setup, message=F}
+#Define directories of interest
+data_dir<-"/nfs/njones-data/Research Projects/BiodiversiTREE/data/flow_data/"
+
+#Download required libraries
+library('tidyr')
+library('dplyr')
+library('lubridate')
+library('dygraphs')
+library('xts')
+
+#Download data
+ws109<-read.csv(paste0(data_dir,'dflo109_07_18.csv'))
+ws110<-read.csv(paste0(data_dir,'dflo110_07_18.csv'))
+
+#Convert date format to POSIX
+ws109$DAY<-as.POSIXct(ws109$DAY, format="%d-%b-%y")
+ws110$DAY<-as.POSIXct(ws110$DAY, format="%d-%b-%y")
+
+#Convert to cfs [from ft3/d]
+ws109 %<>% mutate(cfs= FLOW__CF/86400) %>% select(DAY,cfs)
+ws110 %<>% mutate(cfs= FLOW__CF/86400) %>% select(DAY,cfs)
+
+#Combine flow data
+df<-left_join(ws109, ws110, by="DAY")
+df<-na.omit(df)
+colnames(df)<-c("day", "Q109", "Q110")
+remove(list=ls()[ls()!='df'])
+```
+
+#Plots of Flow Data
+Below are interactive plots of flow data from each watershed. Click and drag mouse to zoom to time period of interest, double click to zoom back out to entire extent, and use the sliding bar at the bottom to pan accross the time period. 
+
+##Watershed 109
+```{r plot1, echo=F}
+df_xts<-xts(data.frame(day  = df$day, 
+                       flow = df$Q109), 
+            order.by=df$day)
+dygraph(df_xts, main="Watershed 109", ylab="Flow [cfs]") %>%
+    dyRangeSelector() %>%
+    dyAxis("y", label = "Flow [cfs]", valueRange = c(0, 3)) %>%
+    dyOptions(strokeWidth = 1.5) %>%
+    dyOptions(labelsUTC = TRUE) %>%
+    dyHighlight(highlightCircleSize = 5,
+                highlightSeriesBackgroundAlpha = 0.2,
+                hideOnMouseOut = FALSE)
+
+```
+
+##Watershed 110
+```{r plot2, echo=F}
+df_xts<-xts(data.frame(day  = df$day, 
+                       flow = df$Q110), 
+            order.by=df$day)
+dygraph(df_xts, main="Watershed 110", ylab="Flow [cfs]") %>%
+    dyRangeSelector() %>%
+    dyAxis("y", label = "Flow [cfs]", valueRange = c(0, 3)) %>%
+    dyOptions(strokeWidth = 1.5) %>%
+    dyOptions(labelsUTC = TRUE) %>%
+    dyHighlight(highlightCircleSize = 5,
+                highlightSeriesBackgroundAlpha = 0.2,
+                hideOnMouseOut = FALSE)
+
+```
+
+#Residual Analysis
+##Annual Water Volume Export
+As a first step, we examine water export [volume] from the two watersheds. 
+```{r resid_daily, echo=F}
+#Filter outliers
+df<- df %>% filter(abs(df$Q109-df$Q110)<10)
+
+#aggregate to annual scale
+year<-df %>% 
+  mutate(month=month(day), 
+         year =year(day)) %>%
+  group_by(year) %>%
+  summarise(vol_109 = sum(Q109), 
+            vol_110 = sum(Q110)) %>%
+  mutate(diff=vol_109-vol_110) %>%
+  arrange(year)
+
+#Estimate residuals
+model<-lm(vol_109~vol_110, data=year)
+year$res<-model$residuals
+
+#Plot Annual Flow [Total Volume]
+plot(year$year, year$vol_109, pch=19, col="grey30")
+plot(year$year, year$vol_110, pch=19, col="grey30")
+points(year$year, year$vol_109)
+
+
+plot(year$vol_109~year$vol_110)
+points(year$vol_109[year$year>2012]~year$vol_110[year$year>2012], pch=19, col="red")
+abline(model)
+abline(a=1, b=1)
+  
+plot(year$year, year$res, type="n", col="grey30")
+  abline(v=2013)
+  lines(l_model, col="red")
+
+
+
+#Monthly differences in flow
+# month<-df %>% 
+#   mutate(month=month(day), 
+#          year =year(day)) %>%
+#   group_by(month,year) %>%
+#   summarise(vol_109 = sum(Q109), 
+#             vol_110 = sum(Q110)) %>%
+#   mutate(diff=vol_109-vol_110) %>%
+#   filter(abs(diff)<100000) %>%
+#   arrange(year, month)
+# plot((month$year+month$month/12), month$diff, type="l", col="grey30")
+#   abline(v=2013)
+# 
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

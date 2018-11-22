@@ -1,0 +1,56 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+#Setup Workspace
+```{r setup, message=F}
+#Define directories of interest
+data_dir  <- "/nfs/njones-data/Research Projects/BiodiversiTREE/spatial_analysis/II_work/"
+workspace <- "/nfs/njones-data/Workspace/"
+wbt_path  <- "/nfs/njones-data/Workspace/WBT/whitebox_tools"
+
+#Download required libraries
+library('tidyr')
+library('dplyr')
+library('lubridate')
+library('dygraphs')
+library('xts')
+library('raster')
+library('sf')
+
+#gather data
+dem<-raster(paste0(data_dir, "dem_clip"))
+
+```
+
+
+#Watershed Delineation
+Here, we use whitebox GAT tools to delineate the watershed. 
+```{r}
+#Write DEM to workspace
+dem<-na.omit(dem)
+writeRaster(dem, paste0(workspace,"dem.tif"), overwrite=T)
+
+#Filter DEM
+system(paste(paste(wbt_path), 
+            "-r=EdgePreservingMeanFilter", 
+             paste0("--wd=",workspace),
+            "-i='dem_.tif'", 
+            "-o='dem_edgepreservingfilter.tif'",
+            "filter=10", 
+            "threshold=100"))
+
+
+
+
+#Breach single-cell pits
+system(paste(paste(wbt_path), 
+            "-r=BreachSingleCellPits", 
+             paste0("--wd=",workspace),
+            "--dem='dem.tif'", 
+            "-o='dem_breachedsinglecells.tif'"))
+
+```
+
