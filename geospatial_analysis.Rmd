@@ -7,9 +7,9 @@ output: html_notebook
 #Setup Workspace
 ```{r setup, message=F}
 #Define directories of interest
-data_dir  <- "/nfs/njones-data/Research Projects/BiodiversiTREE/spatial_analysis/II_work/"
-workspace <- "/nfs/njones-data/Workspace/"
-wbt_path  <- "/nfs/njones-data/Workspace/WBT/whitebox_tools"
+data_dir  <- "Z:\\Research Projects/BiodiversiTREE/spatial_analysis/II_work/"
+workspace <- "C:\\ScratchWorkspace/"
+wbt_path  <- "C:\\Workspace/WBT/whitebox_tools"
 
 #Download required libraries
 library('tidyr')
