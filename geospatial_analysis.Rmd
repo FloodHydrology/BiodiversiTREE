@@ -2,14 +2,16 @@
 title: "R Notebook"
 output: html_notebook
 ---
-
-
 #Setup Workspace
+In this code block, we define directory locations, download "required" libraries, and importing data.   
 ```{r setup, message=F}
+#Clear working dir
+remove(list=ls())
+
 #Define directories of interest
-data_dir  <- "Z:\\Research Projects/BiodiversiTREE/spatial_analysis/II_work/"
-workspace <- "C:\\ScratchWorkspace/"
-wbt_path  <- "C:\\Workspace/WBT/whitebox_tools"
+data_dir    <- "//storage.research.sesync.org/njones-data/Research Projects/BiodiversiTREE/spatial_analysis/II_work/"
+scratch_dir <- "C:\\ScratchWorkspace\\"
+wbt_dir     <- "C:/WBT/whitebox_tools"
 
 #Download required libraries
 library('tidyr')
@@ -20,37 +22,137 @@ library('xts')
 library('raster')
 library('sf')
 
-#gather data
-dem<-raster(paste0(data_dir, "dem_clip"))
+#define spatial projection
+p<-c("+proj=utm +zone=18 +ellps=GRS80 +datum=NAD83 +units=m +no_defs")
 
+#gather data
+dem<-raster(paste0(data_dir, "dem_serc"))
+  writeRaster(dem, paste0(scratch_dir, "dem.tif"), overwrite=T)
+  dem<-raster(paste0(scratch_dir, "dem.tif"))
+  dem<-projectRaster(dem, crs = CRS(p))
+pnts<-st_read(paste0(data_dir, "outlet_points_utm.shp"))
+  pnts<-st_transform(pnts, crs = p)
+
+#Save image
+save.image(paste0(data_dir,'setup.RData'))  
 ```
 
 
 #Watershed Delineation
-Here, we use whitebox GAT tools to delineate the watershed. 
+In this code chunk, we use Whitebox GAT tools [WBT] to delineate the watershed. To do this, we fiirst need to download the WBT exacutable and place it in the C:\\ directory.  We also need to create a workspace directory.  [Note, both of these locations were defined in the 'setup' chunk above.]  To use WBT, export the raster from the R environment into the workspace directory. Then, execute WBT commands using system calls. Once WBT tasks are complete, then import updated raster file back into the R enviornment. Easy peasy. 
 ```{r}
 #Write DEM to workspace
 dem<-na.omit(dem)
-writeRaster(dem, paste0(workspace,"dem.tif"), overwrite=T)
+dem<-dem+1000
+writeRaster(dem, paste0(scratch_dir,"dem.tif"), overwrite=T)
 
-#Filter DEM
-system(paste(paste(wbt_path), 
-            "-r=EdgePreservingMeanFilter", 
-             paste0("--wd=",workspace),
-            "-i='dem_.tif'", 
-            "-o='dem_edgepreservingfilter.tif'",
-            "filter=10", 
-            "threshold=100"))
+#Write points to workspace
+st_write(pnts, paste0(scratch_dir,"pnts.shp"), delete_layer = T)
 
+#Smooth DEM with a Gaussian Filter
+system(paste(paste(wbt_dir), 
+             "-r=GaussianFilter", 
+             paste0("--wd=",scratch_dir),
+             "-i='dem.tif'", 
+             "-o='dem_filter'",
+             "--sigma=3"))
 
+#Fill "single cell" depressions
+system(paste(paste(wbt_dir),
+              "-r=FillSingleCellPits",
+              paste0("--wd=",scratch_dir),
+              "--dem='dem_filter.tif'",
+              "-o='dem_breach_minor.tif'"))
 
+#Breach larger depressions
+system(paste(paste(wbt_dir), 
+             "-r=BreachDepressions", 
+             paste0("--wd=",scratch_dir),
+             "--dem='dem_breach_minor.tif'", 
+             "-o='dem_breach_major.tif'"))
 
-#Breach single-cell pits
-system(paste(paste(wbt_path), 
-            "-r=BreachSingleCellPits", 
-             paste0("--wd=",workspace),
-            "--dem='dem.tif'", 
-            "-o='dem_breachedsinglecells.tif'"))
+#Create Flow Accumulation Raster
+system(paste(paste(wbt_dir), 
+             "-r=D8FlowAccumulation", 
+             "--out_type='cells'",
+             paste0("--wd=",scratch_dir),
+             "--dem='dem_breach_major.tif'", 
+             "-o='fac.tif'"))
+
+#Create Stream Raster [fac>1000]
+fac<-raster(paste0(scratch_dir,"fac.tif"))
+fac[fac<1000]<-NA
+fac<-fac*0+1
+fac@crs<-CRS(p)
+writeRaster(fac,paste0(scratch_dir,"flowgrid.tiff"), overwrite=T)
+ 
+#Run flow direction 
+system(paste(paste(wbt_dir),
+             "-r=D8Pointer",
+             paste0("--wd=",scratch_dir),
+             "--dem='dem_breach_major.tif'",
+             "-o='fdr.tif'",
+             "--out_type=sca"))
+
+#Create pour pnt raster
+system(paste(paste(wbt_dir),
+             "-r=VectorPointsToRaster",
+             paste0("--wd=",scratch_dir),
+             "-i='pnts.shp'",
+             "--field=FidActl",
+             "-o=pp.tif",
+             "--assign=min",
+             "--nodata",
+             "--base=dem.tif"))
+
+#Jenson Snap Pour point
+system(paste(paste(wbt_dir),
+             "-r=JensonSnapPourPoints",
+             paste0("--wd=",scratch_dir),
+             "--pour_pts='pp.tif'",
+             "--streams='flowgrid.tif'",
+             "-o='pp_snap.tif",
+             "--snap_dist=1000"
+))
+
+#Convert back to point file
+snapgrid<-raster(paste0(scratch_dir,"pp_snap.tif"))
+snappnts<-data.frame(rasterToPoints(snapgrid, fun=function(x){x>0}))
+snappnts<-st_as_sf(snappnts,
+            coords=c("x","y"),
+            crs=paste(dem@crs))
+
+#Export point back to scratch workspace
+st_write(snappnts, paste0(scratch_dir,"snap.shp"), delete_layer = T)
+    
+#Watershed Tool
+system(paste(paste(wbt_dir), 
+             "-r=Watershed", 
+             paste0("--wd=",scratch_dir),
+             "--d8_pntr='fdr.tif'",
+             "--pour_pts='snap.shp'", 
+             paste0("-o='watershed.tif'")))
+
+#Import watershed raster into R environment
+ws_grid<-raster(paste0(scratch_dir,"watershed.tif"), overwrite=T)
+
+#Define individual watersheds
+ws110<-ws_grid
+  ws110[ws110==2]<-NA
+ws109<-ws_grid
+  ws109[ws109==1]<-NA
+  ws109[ws109==2]<-1
+  
+#convert to shapes
+watersheds<-rasterToPolygons(ws_grid, dissolve = T)
+  watersheds<-st_as_sf(watersheds, crs=p)
+  
+#Export shapes
+writeRaster(ws_grid , paste0(data_dir, "watersheds.tif"), overwrite=T)
+st_write(watersheds, paste0(data_dir, "watersheds.shp"), delete_layer = T)
+  
+#Save image
+save.image(paste0(data_dir,'watershed_delineation.RData'))
 
 ```
 

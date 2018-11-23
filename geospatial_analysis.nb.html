@@ -178,41 +178,143 @@ $(document).ready(function () {
 <!-- rnb-text-begin -->
 <div id="setup-workspace" class="section level1">
 <h1>Setup Workspace</h1>
+<p>In this code block, we define directory locations, download “required” libraries, and importing data.</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI0RlZmluZSBkaXJlY3RvcmllcyBvZiBpbnRlcmVzdFxuZGF0YV9kaXIgIDwtIFwiL25mcy9uam9uZXMtZGF0YS9SZXNlYXJjaCBQcm9qZWN0cy9CaW9kaXZlcnNpVFJFRS9zcGF0aWFsX2FuYWx5c2lzL0lJX3dvcmsvXCJcbndvcmtzcGFjZSA8LSBcIi9uZnMvbmpvbmVzLWRhdGEvV29ya3NwYWNlL1wiXG53YnRfcGF0aCAgPC0gXCIvbmZzL25qb25lcy1kYXRhL1Jlc2VhcmNoIFByb2plY3RzL0Jpb2RpdmVyc2lUUkVFL3NwYXRpYWxfYW5hbHlzaXMvV0JUL3doaXRlYm94X3Rvb2xzXCJcbiNEb3dubG9hZCByZXF1aXJlZCBsaWJyYXJpZXNcbmxpYnJhcnkoJ3RpZHlyJylcbmxpYnJhcnkoJ2RwbHlyJylcbmxpYnJhcnkoJ2x1YnJpZGF0ZScpXG5saWJyYXJ5KCdkeWdyYXBocycpXG5saWJyYXJ5KCd4dHMnKVxubGlicmFyeSgncmFzdGVyJylcbmxpYnJhcnkoJ3NmJylcbiNnYXRoZXIgZGF0YVxuZGVtPC1yYXN0ZXIocGFzdGUwKGRhdGFfZGlyLCBcImRlbV9jbGlwXCIpKVxuYGBgIn0= -->
-<pre class="r"><code>#Define directories of interest
-data_dir  &lt;- &quot;/nfs/njones-data/Research Projects/BiodiversiTREE/spatial_analysis/II_work/&quot;
-workspace &lt;- &quot;/nfs/njones-data/Workspace/&quot;
-wbt_path  &lt;- &quot;/nfs/njones-data/Research Projects/BiodiversiTREE/spatial_analysis/WBT/whitebox_tools&quot;
-#Download required libraries
-library('tidyr')
-library('dplyr')
-library('lubridate')
-library('dygraphs')
-library('xts')
-library('raster')
-library('sf')
-#gather data
-dem&lt;-raster(paste0(data_dir, &quot;dem_clip&quot;))</code></pre>
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxucG50czwtc3RfcmVhZChwYXN0ZTAoZGF0YV9kaXIsIFwib3V0bGV0X3BvaW50c191dG0uc2hwXCIpKVxuXG5gYGAifQ== -->
+<pre class="r"><code>pnts&lt;-st_read(paste0(data_dir, &quot;outlet_points_utm.shp&quot;))
+</code></pre>
 <!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiUmVhZGluZyBsYXllciBgb3V0bGV0X3BvaW50c191dG0nIGZyb20gZGF0YSBzb3VyY2UgYFxcXFxzdG9yYWdlLnJlc2VhcmNoLnNlc3luYy5vcmdcXG5qb25lcy1kYXRhXFxSZXNlYXJjaCBQcm9qZWN0c1xcQmlvZGl2ZXJzaVRSRUVcXHNwYXRpYWxfYW5hbHlzaXNcXElJX3dvcmtcXG91dGxldF9wb2ludHNfdXRtLnNocCcgdXNpbmcgZHJpdmVyIGBFU1JJIFNoYXBlZmlsZSdcblNpbXBsZSBmZWF0dXJlIGNvbGxlY3Rpb24gd2l0aCAyIGZlYXR1cmVzIGFuZCAxIGZpZWxkXG5nZW9tZXRyeSB0eXBlOiAgUE9JTlRcbmRpbWVuc2lvbjogICAgICBYWVxuYmJveDogICAgICAgICAgIHhtaW46IDM2NTIwOC42IHltaW46IDQzMDMzODYgeG1heDogMzY1MjQ1LjkgeW1heDogNDMwNTA0OVxuZXBzZyAoU1JJRCk6ICAgIDI2OTE4XG5wcm9qNHN0cmluZzogICAgK3Byb2o9dXRtICt6b25lPTE4ICtkYXR1bT1OQUQ4MyArdW5pdHM9bSArbm9fZGVmc1xuIn0= -->
+<pre><code>Reading layer `outlet_points_utm' from data source `\\storage.research.sesync.org\njones-data\Research Projects\BiodiversiTREE\spatial_analysis\II_work\outlet_points_utm.shp' using driver `ESRI Shapefile'
+Simple feature collection with 2 features and 1 field
+geometry type:  POINT
+dimension:      XY
+bbox:           xmin: 365208.6 ymin: 4303386 xmax: 365245.9 ymax: 4305049
+epsg (SRID):    26918
+proj4string:    +proj=utm +zone=18 +datum=NAD83 +units=m +no_defs</code></pre>
+<!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 </div>
 <div id="watershed-delineation" class="section level1">
 <h1>Watershed Delineation</h1>
-<p>Here, we use whitebox GAT tools to delineate the watershed.</p>
+<p>In this code chunk, we use Whitebox GAT tools [WBT] to delineate the watershed. To do this, we fiirst need to download the WBT exacutable and place it in the C:\ directory. We also need to create a workspace directory. [Note, both of these locations were defined in the ‘setup’ chunk above.] To use WBT, export the raster from the R environment into the workspace directory. Then, execute WBT commands using system calls. Once WBT tasks are complete, then import updated raster file back into the R enviornment. Easy peasy.</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI0ZpbHRlciBERU1cbnN5c3RlbShwYXN0ZShwYXN0ZSh3YnRfcGF0aCksIFxuICAgICAgICAgICAgXCItcj1FZGdlUHJlc2VydmluZ01lYW5GaWx0ZXJcIiwgXG4gICAgICAgICAgICBcIi0td2Q9IC9uZnMvbmpvbmVzLWRhdGEvV29ya3NwYWNlL1wiLFxuICAgICAgICAgICAgXCItaT0nZGVtXy50aWYnXCIsIFxuICAgICAgICAgICAgXCItbz0nZGVtX2VkZ2VwcmVzZXJ2aW5nZmlsdGVyLnRpZidcIixcbiAgICAgICAgICAgIFwiZmlsdGVyPTEwXCIsIFxuICAgICAgICAgICAgXCJ0aHJlc2hvbGQ9MTAwXCIpKVxuXG5gYGAifQ== -->
-<pre class="r"><code>#Filter DEM
-system(paste(paste(wbt_path), 
-            &quot;-r=EdgePreservingMeanFilter&quot;, 
-            &quot;--wd= /nfs/njones-data/Workspace/&quot;,
-            &quot;-i='dem_.tif'&quot;, 
-            &quot;-o='dem_edgepreservingfilter.tif'&quot;,
-            &quot;filter=10&quot;, 
-            &quot;threshold=100&quot;))
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuI1dyaXRlIERFTSB0byB3b3Jrc3BhY2VcbmRlbTwtbmEub21pdChkZW0pXG5kZW08LWRlbSsxMDAwXG53cml0ZVJhc3RlcihkZW0sIHBhc3RlMChzY3JhdGNoX2RpcixcImRlbS50aWZcIiksIG92ZXJ3cml0ZT1UKVxuXG4jV3JpdGUgcG9pbnRzIHRvIHdvcmtzcGFjZVxuc3Rfd3JpdGUocG50cywgcGFzdGUwKHNjcmF0Y2hfZGlyLFwicG50cy5zaHBcIiksIGRlbGV0ZV9sYXllciA9IFQpXG5cbiNTbW9vdGggREVNIHdpdGggYSBHYXVzc2lhbiBGaWx0ZXJcbnN5c3RlbShwYXN0ZShwYXN0ZSh3YnRfZGlyKSwgXG4gICAgICAgICAgICAgXCItcj1HYXVzc2lhbkZpbHRlclwiLCBcbiAgICAgICAgICAgICBwYXN0ZTAoXCItLXdkPVwiLHNjcmF0Y2hfZGlyKSxcbiAgICAgICAgICAgICBcIi1pPSdkZW0udGlmJ1wiLCBcbiAgICAgICAgICAgICBcIi1vPSdkZW1fZmlsdGVyJ1wiLFxuICAgICAgICAgICAgIFwiLS1zaWdtYT0zXCIpKVxuXG4jRmlsbCBcInNpbmdsZSBjZWxsXCIgZGVwcmVzc2lvbnNcbnN5c3RlbShwYXN0ZShwYXN0ZSh3YnRfZGlyKSxcbiAgICAgICAgICAgICAgXCItcj1GaWxsU2luZ2xlQ2VsbFBpdHNcIixcbiAgICAgICAgICAgICAgcGFzdGUwKFwiLS13ZD1cIixzY3JhdGNoX2RpciksXG4gICAgICAgICAgICAgIFwiLS1kZW09J2RlbV9maWx0ZXIudGlmJ1wiLFxuICAgICAgICAgICAgICBcIi1vPSdkZW1fYnJlYWNoX21pbm9yLnRpZidcIikpXG5cbiNCcmVhY2ggbGFyZ2VyIGRlcHJlc3Npb25zXG5zeXN0ZW0ocGFzdGUocGFzdGUod2J0X2RpciksIFxuICAgICAgICAgICAgIFwiLXI9QnJlYWNoRGVwcmVzc2lvbnNcIiwgXG4gICAgICAgICAgICAgcGFzdGUwKFwiLS13ZD1cIixzY3JhdGNoX2RpciksXG4gICAgICAgICAgICAgXCItLWRlbT0nZGVtX2JyZWFjaF9taW5vci50aWYnXCIsIFxuICAgICAgICAgICAgIFwiLW89J2RlbV9icmVhY2hfbWFqb3IudGlmJ1wiKSlcblxuI0NyZWF0ZSBGbG93IEFjY3VtdWxhdGlvbiBSYXN0ZXJcbnN5c3RlbShwYXN0ZShwYXN0ZSh3YnRfZGlyKSwgXG4gICAgICAgICAgICAgXCItcj1EOEZsb3dBY2N1bXVsYXRpb25cIiwgXG4gICAgICAgICAgICAgXCItLW91dF90eXBlPSdjZWxscydcIixcbiAgICAgICAgICAgICBwYXN0ZTAoXCItLXdkPVwiLHNjcmF0Y2hfZGlyKSxcbiAgICAgICAgICAgICBcIi0tZGVtPSdkZW1fYnJlYWNoX21ham9yLnRpZidcIiwgXG4gICAgICAgICAgICAgXCItbz0nZmFjLnRpZidcIikpXG5cbiNDcmVhdGUgU3RyZWFtIFJhc3RlciBbZmFjPjEwMDBdXG5mYWM8LXJhc3RlcihwYXN0ZTAoc2NyYXRjaF9kaXIsXCJmYWMudGlmXCIpKVxuZmFjW2ZhYzwxMDAwXTwtTkFcbmZhYzwtZmFjKjArMVxuZmFjQGNyczwtQ1JTKHApXG53cml0ZVJhc3RlcihmYWMscGFzdGUwKHNjcmF0Y2hfZGlyLFwiZmxvd2dyaWQudGlmZlwiKSwgb3ZlcndyaXRlPVQpXG4gXG4jUnVuIGZsb3cgZGlyZWN0aW9uIFxuc3lzdGVtKHBhc3RlKHBhc3RlKHdidF9kaXIpLFxuICAgICAgICAgICAgIFwiLXI9RDhQb2ludGVyXCIsXG4gICAgICAgICAgICAgcGFzdGUwKFwiLS13ZD1cIixzY3JhdGNoX2RpciksXG4gICAgICAgICAgICAgXCItLWRlbT0nZGVtX2JyZWFjaF9tYWpvci50aWYnXCIsXG4gICAgICAgICAgICAgXCItbz0nZmRyLnRpZidcIixcbiAgICAgICAgICAgICBcIi0tb3V0X3R5cGU9c2NhXCIpKVxuXG4jQ3JlYXRlIHBvdXIgcG50IHJhc3Rlclxuc3lzdGVtKHBhc3RlKHBhc3RlKHdidF9kaXIpLFxuICAgICAgICAgICAgIFwiLXI9VmVjdG9yUG9pbnRzVG9SYXN0ZXJcIixcbiAgICAgICAgICAgICBwYXN0ZTAoXCItLXdkPVwiLHNjcmF0Y2hfZGlyKSxcbiAgICAgICAgICAgICBcIi1pPSdwbnRzLnNocCdcIixcbiAgICAgICAgICAgICBcIi0tZmllbGQ9RmlkQWN0bFwiLFxuICAgICAgICAgICAgIFwiLW89cHAudGlmXCIsXG4gICAgICAgICAgICAgXCItLWFzc2lnbj1taW5cIixcbiAgICAgICAgICAgICBcIi0tbm9kYXRhXCIsXG4gICAgICAgICAgICAgXCItLWJhc2U9ZGVtLnRpZlwiKSlcblxuI0plbnNvbiBTbmFwIFBvdXIgcG9pbnRcbnN5c3RlbShwYXN0ZShwYXN0ZSh3YnRfZGlyKSxcbiAgICAgICAgICAgICBcIi1yPUplbnNvblNuYXBQb3VyUG9pbnRzXCIsXG4gICAgICAgICAgICAgcGFzdGUwKFwiLS13ZD1cIixzY3JhdGNoX2RpciksXG4gICAgICAgICAgICAgXCItLXBvdXJfcHRzPSdwcC50aWYnXCIsXG4gICAgICAgICAgICAgXCItLXN0cmVhbXM9J2Zsb3dncmlkLnRpZidcIixcbiAgICAgICAgICAgICBcIi1vPSdwcF9zbmFwLnRpZlwiLFxuICAgICAgICAgICAgIFwiLS1zbmFwX2Rpc3Q9MTAwMFwiXG4pKVxuXG4jQ29udmVydCBiYWNrIHRvIHBvaW50IGZpbGVcbnNuYXBncmlkPC1yYXN0ZXIocGFzdGUwKHNjcmF0Y2hfZGlyLFwicHBfc25hcC50aWZcIikpXG5zbmFwcG50czwtZGF0YS5mcmFtZShyYXN0ZXJUb1BvaW50cyhzbmFwZ3JpZCwgZnVuPWZ1bmN0aW9uKHgpe3g+MH0pKVxuc25hcHBudHM8LXN0X2FzX3NmKHNuYXBwbnRzLFxuICAgICAgICAgICAgY29vcmRzPWMoXCJ4XCIsXCJ5XCIpLFxuICAgICAgICAgICAgY3JzPXBhc3RlKGRlbUBjcnMpKVxuXG4jRXhwb3J0IHBvaW50IGJhY2sgdG8gc2NyYXRjaCB3b3Jrc3BhY2VcbnN0X3dyaXRlKHNuYXBwbnRzLCBwYXN0ZTAoc2NyYXRjaF9kaXIsXCJzbmFwLnNocFwiKSwgZGVsZXRlX2xheWVyID0gVClcbiAgICBcbiNXYXRlcnNoZWQgVG9vbFxuc3lzdGVtKHBhc3RlKHBhc3RlKHdidF9kaXIpLCBcbiAgICAgICAgICAgICBcIi1yPVdhdGVyc2hlZFwiLCBcbiAgICAgICAgICAgICBwYXN0ZTAoXCItLXdkPVwiLHNjcmF0Y2hfZGlyKSxcbiAgICAgICAgICAgICBcIi0tZDhfcG50cj0nZmRyLnRpZidcIixcbiAgICAgICAgICAgICBcIi0tcG91cl9wdHM9J3NuYXAuc2hwJ1wiLCBcbiAgICAgICAgICAgICBwYXN0ZTAoXCItbz0nd2F0ZXJzaGVkLnRpZidcIikpKVxuXG4jSW1wb3J0IHdhdGVyc2hlZCByYXN0ZXIgaW50byBSIGVudmlyb25tZW50XG53c19ncmlkPC1yYXN0ZXIocGFzdGUwKHNjcmF0Y2hfZGlyLFwid2F0ZXJzaGVkLnRpZlwiKSwgb3ZlcndyaXRlPVQpXG5cbiNEZWZpbmUgaW5kaXZpZHVhbCB3YXRlcnNoZWRzXG53czExMDwtd3NfZ3JpZFxuICB3czExMFt3czExMD09Ml08LU5BXG53czEwOTwtd3NfZ3JpZFxuICB3czEwOVt3czEwOT09MV08LU5BXG4gIHdzMTA5W3dzMTA5PT0yXTwtMVxuICBcbiNjb252ZXJ0IHRvIHNoYXBlc1xud2F0ZXJzaGVkczwtcmFzdGVyVG9Qb2x5Z29ucyh3c19ncmlkLCBkaXNzb2x2ZSA9IFQpXG4gIHdhdGVyc2hlZHM8LXN0X2FzX3NmKHdhdGVyc2hlZHMsIGNycz1wKVxuICBcbiNFeHBvcnQgc2hhcGVzXG53cml0ZVJhc3Rlcih3c19ncmlkICwgcGFzdGUwKGRhdGFfZGlyLCBcIndhdGVyc2hlZHMudGlmXCIpLCBvdmVyd3JpdGU9VClcbnN0X3dyaXRlKHdhdGVyc2hlZHMsIHBhc3RlMChkYXRhX2RpciwgXCJ3YXRlcnNoZWRzLnNocFwiKSwgZGVsZXRlX2xheWVyID0gVClcbiAgXG4jU2F2ZSBpbWFnZVxuc2F2ZS5pbWFnZShwYXN0ZTAoZGF0YV9kaXIsJ3dhdGVyc2hlZF9kZWxpbmVhdGlvbi5SRGF0YScpKVxuXG5gYGAifQ== -->
+<pre class="r"><code>#Write DEM to workspace
+dem&lt;-na.omit(dem)
+dem&lt;-dem+1000
+writeRaster(dem, paste0(scratch_dir,&quot;dem.tif&quot;), overwrite=T)
+
+#Write points to workspace
+st_write(pnts, paste0(scratch_dir,&quot;pnts.shp&quot;), delete_layer = T)
+
+#Smooth DEM with a Gaussian Filter
+system(paste(paste(wbt_dir), 
+             &quot;-r=GaussianFilter&quot;, 
+             paste0(&quot;--wd=&quot;,scratch_dir),
+             &quot;-i='dem.tif'&quot;, 
+             &quot;-o='dem_filter'&quot;,
+             &quot;--sigma=3&quot;))
+
+#Fill &quot;single cell&quot; depressions
+system(paste(paste(wbt_dir),
+              &quot;-r=FillSingleCellPits&quot;,
+              paste0(&quot;--wd=&quot;,scratch_dir),
+              &quot;--dem='dem_filter.tif'&quot;,
+              &quot;-o='dem_breach_minor.tif'&quot;))
+
+#Breach larger depressions
+system(paste(paste(wbt_dir), 
+             &quot;-r=BreachDepressions&quot;, 
+             paste0(&quot;--wd=&quot;,scratch_dir),
+             &quot;--dem='dem_breach_minor.tif'&quot;, 
+             &quot;-o='dem_breach_major.tif'&quot;))
+
+#Create Flow Accumulation Raster
+system(paste(paste(wbt_dir), 
+             &quot;-r=D8FlowAccumulation&quot;, 
+             &quot;--out_type='cells'&quot;,
+             paste0(&quot;--wd=&quot;,scratch_dir),
+             &quot;--dem='dem_breach_major.tif'&quot;, 
+             &quot;-o='fac.tif'&quot;))
+
+#Create Stream Raster [fac&gt;1000]
+fac&lt;-raster(paste0(scratch_dir,&quot;fac.tif&quot;))
+fac[fac&lt;1000]&lt;-NA
+fac&lt;-fac*0+1
+fac@crs&lt;-CRS(p)
+writeRaster(fac,paste0(scratch_dir,&quot;flowgrid.tiff&quot;), overwrite=T)
+ 
+#Run flow direction 
+system(paste(paste(wbt_dir),
+             &quot;-r=D8Pointer&quot;,
+             paste0(&quot;--wd=&quot;,scratch_dir),
+             &quot;--dem='dem_breach_major.tif'&quot;,
+             &quot;-o='fdr.tif'&quot;,
+             &quot;--out_type=sca&quot;))
+
+#Create pour pnt raster
+system(paste(paste(wbt_dir),
+             &quot;-r=VectorPointsToRaster&quot;,
+             paste0(&quot;--wd=&quot;,scratch_dir),
+             &quot;-i='pnts.shp'&quot;,
+             &quot;--field=FidActl&quot;,
+             &quot;-o=pp.tif&quot;,
+             &quot;--assign=min&quot;,
+             &quot;--nodata&quot;,
+             &quot;--base=dem.tif&quot;))
+
+#Jenson Snap Pour point
+system(paste(paste(wbt_dir),
+             &quot;-r=JensonSnapPourPoints&quot;,
+             paste0(&quot;--wd=&quot;,scratch_dir),
+             &quot;--pour_pts='pp.tif'&quot;,
+             &quot;--streams='flowgrid.tif'&quot;,
+             &quot;-o='pp_snap.tif&quot;,
+             &quot;--snap_dist=1000&quot;
+))
+
+#Convert back to point file
+snapgrid&lt;-raster(paste0(scratch_dir,&quot;pp_snap.tif&quot;))
+snappnts&lt;-data.frame(rasterToPoints(snapgrid, fun=function(x){x&gt;0}))
+snappnts&lt;-st_as_sf(snappnts,
+            coords=c(&quot;x&quot;,&quot;y&quot;),
+            crs=paste(dem@crs))
+
+#Export point back to scratch workspace
+st_write(snappnts, paste0(scratch_dir,&quot;snap.shp&quot;), delete_layer = T)
+    
+#Watershed Tool
+system(paste(paste(wbt_dir), 
+             &quot;-r=Watershed&quot;, 
+             paste0(&quot;--wd=&quot;,scratch_dir),
+             &quot;--d8_pntr='fdr.tif'&quot;,
+             &quot;--pour_pts='snap.shp'&quot;, 
+             paste0(&quot;-o='watershed.tif'&quot;)))
+
+#Import watershed raster into R environment
+ws_grid&lt;-raster(paste0(scratch_dir,&quot;watershed.tif&quot;), overwrite=T)
+
+#Define individual watersheds
+ws110&lt;-ws_grid
+  ws110[ws110==2]&lt;-NA
+ws109&lt;-ws_grid
+  ws109[ws109==1]&lt;-NA
+  ws109[ws109==2]&lt;-1
+  
+#convert to shapes
+watersheds&lt;-rasterToPolygons(ws_grid, dissolve = T)
+  watersheds&lt;-st_as_sf(watersheds, crs=p)
+  
+#Export shapes
+writeRaster(ws_grid , paste0(data_dir, &quot;watersheds.tif&quot;), overwrite=T)
+st_write(watersheds, paste0(data_dir, &quot;watersheds.shp&quot;), delete_layer = T)
+  
+#Save image
+save.image(paste0(data_dir,'watershed_delineation.RData'))
 </code></pre>
 <!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
@@ -220,7 +322,7 @@ system(paste(paste(wbt_path),
 <!-- rnb-text-end -->
 </div>
 
-<div id="rmd-source-code">LS0tCnRpdGxlOiAiUiBOb3RlYm9vayIKb3V0cHV0OiBodG1sX25vdGVib29rCi0tLQoKCiNTZXR1cCBXb3Jrc3BhY2UKYGBge3Igc2V0dXAsIG1lc3NhZ2U9Rn0KI0RlZmluZSBkaXJlY3RvcmllcyBvZiBpbnRlcmVzdApkYXRhX2RpciAgPC0gIi9uZnMvbmpvbmVzLWRhdGEvUmVzZWFyY2ggUHJvamVjdHMvQmlvZGl2ZXJzaVRSRUUvc3BhdGlhbF9hbmFseXNpcy9JSV93b3JrLyIKd29ya3NwYWNlIDwtICIvbmZzL25qb25lcy1kYXRhL1dvcmtzcGFjZS8iCndidF9wYXRoICA8LSAiL25mcy9uam9uZXMtZGF0YS9Xb3Jrc3BhY2UvV0JUL3doaXRlYm94X3Rvb2xzIgoKI0Rvd25sb2FkIHJlcXVpcmVkIGxpYnJhcmllcwpsaWJyYXJ5KCd0aWR5cicpCmxpYnJhcnkoJ2RwbHlyJykKbGlicmFyeSgnbHVicmlkYXRlJykKbGlicmFyeSgnZHlncmFwaHMnKQpsaWJyYXJ5KCd4dHMnKQpsaWJyYXJ5KCdyYXN0ZXInKQpsaWJyYXJ5KCdzZicpCgojZ2F0aGVyIGRhdGEKZGVtPC1yYXN0ZXIocGFzdGUwKGRhdGFfZGlyLCAiZGVtX2NsaXAiKSkKCmBgYAoKCiNXYXRlcnNoZWQgRGVsaW5lYXRpb24KSGVyZSwgd2UgdXNlIHdoaXRlYm94IEdBVCB0b29scyB0byBkZWxpbmVhdGUgdGhlIHdhdGVyc2hlZC4gCmBgYHtyfQojV3JpdGUgREVNIHRvIHdvcmtzcGFjZQpkZW08LW5hLm9taXQoZGVtKQp3cml0ZVJhc3RlcihkZW0sIHBhc3RlMCh3b3Jrc3BhY2UsImRlbS50aWYiKSwgb3ZlcndyaXRlPVQpCgojRmlsdGVyIERFTQpzeXN0ZW0ocGFzdGUocGFzdGUod2J0X3BhdGgpLCAKICAgICAgICAgICAgIi1yPUVkZ2VQcmVzZXJ2aW5nTWVhbkZpbHRlciIsIAogICAgICAgICAgICAgcGFzdGUwKCItLXdkPSIsd29ya3NwYWNlKSwKICAgICAgICAgICAgIi1pPSdkZW1fLnRpZiciLCAKICAgICAgICAgICAgIi1vPSdkZW1fZWRnZXByZXNlcnZpbmdmaWx0ZXIudGlmJyIsCiAgICAgICAgICAgICJmaWx0ZXI9MTAiLCAKICAgICAgICAgICAgInRocmVzaG9sZD0xMDAiKSkKCgoKCiNCcmVhY2ggc2luZ2xlLWNlbGwgcGl0cwpzeXN0ZW0ocGFzdGUocGFzdGUod2J0X3BhdGgpLCAKICAgICAgICAgICAgIi1yPUJyZWFjaFNpbmdsZUNlbGxQaXRzIiwgCiAgICAgICAgICAgICBwYXN0ZTAoIi0td2Q9Iix3b3Jrc3BhY2UpLAogICAgICAgICAgICAiLS1kZW09J2RlbS50aWYnIiwgCiAgICAgICAgICAgICItbz0nZGVtX2JyZWFjaGVkc2luZ2xlY2VsbHMudGlmJyIpKQoKYGBgCgo=</div>
+<div id="rmd-source-code">LS0tDQp0aXRsZTogIlIgTm90ZWJvb2siDQpvdXRwdXQ6IGh0bWxfbm90ZWJvb2sNCi0tLQ0KI1NldHVwIFdvcmtzcGFjZQ0KSW4gdGhpcyBjb2RlIGJsb2NrLCB3ZSBkZWZpbmUgZGlyZWN0b3J5IGxvY2F0aW9ucywgZG93bmxvYWQgInJlcXVpcmVkIiBsaWJyYXJpZXMsIGFuZCBpbXBvcnRpbmcgZGF0YS4gICANCmBgYHtyIHNldHVwLCBtZXNzYWdlPUZ9DQojQ2xlYXIgd29ya2luZyBkaXINCnJlbW92ZShsaXN0PWxzKCkpDQoNCiNEZWZpbmUgZGlyZWN0b3JpZXMgb2YgaW50ZXJlc3QNCmRhdGFfZGlyICAgIDwtICIvL3N0b3JhZ2UucmVzZWFyY2guc2VzeW5jLm9yZy9uam9uZXMtZGF0YS9SZXNlYXJjaCBQcm9qZWN0cy9CaW9kaXZlcnNpVFJFRS9zcGF0aWFsX2FuYWx5c2lzL0lJX3dvcmsvIg0Kc2NyYXRjaF9kaXIgPC0gIkM6XFxTY3JhdGNoV29ya3NwYWNlXFwiDQp3YnRfZGlyICAgICA8LSAiQzovV0JUL3doaXRlYm94X3Rvb2xzIg0KDQojRG93bmxvYWQgcmVxdWlyZWQgbGlicmFyaWVzDQpsaWJyYXJ5KCd0aWR5cicpDQpsaWJyYXJ5KCdkcGx5cicpDQpsaWJyYXJ5KCdsdWJyaWRhdGUnKQ0KbGlicmFyeSgnZHlncmFwaHMnKQ0KbGlicmFyeSgneHRzJykNCmxpYnJhcnkoJ3Jhc3RlcicpDQpsaWJyYXJ5KCdzZicpDQoNCiNkZWZpbmUgc3BhdGlhbCBwcm9qZWN0aW9uDQpwPC1jKCIrcHJvaj11dG0gK3pvbmU9MTggK2VsbHBzPUdSUzgwICtkYXR1bT1OQUQ4MyArdW5pdHM9bSArbm9fZGVmcyIpDQoNCiNnYXRoZXIgZGF0YQ0KZGVtPC1yYXN0ZXIocGFzdGUwKGRhdGFfZGlyLCAiZGVtX3NlcmMiKSkNCiAgd3JpdGVSYXN0ZXIoZGVtLCBwYXN0ZTAoc2NyYXRjaF9kaXIsICJkZW0udGlmIiksIG92ZXJ3cml0ZT1UKQ0KICBkZW08LXJhc3RlcihwYXN0ZTAoc2NyYXRjaF9kaXIsICJkZW0udGlmIikpDQogIGRlbTwtcHJvamVjdFJhc3RlcihkZW0sIGNycyA9IENSUyhwKSkNCnBudHM8LXN0X3JlYWQocGFzdGUwKGRhdGFfZGlyLCAib3V0bGV0X3BvaW50c191dG0uc2hwIikpDQogIHBudHM8LXN0X3RyYW5zZm9ybShwbnRzLCBjcnMgPSBwKQ0KDQojU2F2ZSBpbWFnZQ0Kc2F2ZS5pbWFnZShwYXN0ZTAoZGF0YV9kaXIsJ3NldHVwLlJEYXRhJykpICANCmBgYA0KDQoNCiNXYXRlcnNoZWQgRGVsaW5lYXRpb24NCkluIHRoaXMgY29kZSBjaHVuaywgd2UgdXNlIFdoaXRlYm94IEdBVCB0b29scyBbV0JUXSB0byBkZWxpbmVhdGUgdGhlIHdhdGVyc2hlZC4gVG8gZG8gdGhpcywgd2UgZmlpcnN0IG5lZWQgdG8gZG93bmxvYWQgdGhlIFdCVCBleGFjdXRhYmxlIGFuZCBwbGFjZSBpdCBpbiB0aGUgQzpcXCBkaXJlY3RvcnkuICBXZSBhbHNvIG5lZWQgdG8gY3JlYXRlIGEgd29ya3NwYWNlIGRpcmVjdG9yeS4gIFtOb3RlLCBib3RoIG9mIHRoZXNlIGxvY2F0aW9ucyB3ZXJlIGRlZmluZWQgaW4gdGhlICdzZXR1cCcgY2h1bmsgYWJvdmUuXSAgVG8gdXNlIFdCVCwgZXhwb3J0IHRoZSByYXN0ZXIgZnJvbSB0aGUgUiBlbnZpcm9ubWVudCBpbnRvIHRoZSB3b3Jrc3BhY2UgZGlyZWN0b3J5LiBUaGVuLCBleGVjdXRlIFdCVCBjb21tYW5kcyB1c2luZyBzeXN0ZW0gY2FsbHMuIE9uY2UgV0JUIHRhc2tzIGFyZSBjb21wbGV0ZSwgdGhlbiBpbXBvcnQgdXBkYXRlZCByYXN0ZXIgZmlsZSBiYWNrIGludG8gdGhlIFIgZW52aW9ybm1lbnQuIEVhc3kgcGVhc3kuIA0KYGBge3J9DQojV3JpdGUgREVNIHRvIHdvcmtzcGFjZQ0KZGVtPC1uYS5vbWl0KGRlbSkNCmRlbTwtZGVtKzEwMDANCndyaXRlUmFzdGVyKGRlbSwgcGFzdGUwKHNjcmF0Y2hfZGlyLCJkZW0udGlmIiksIG92ZXJ3cml0ZT1UKQ0KDQojV3JpdGUgcG9pbnRzIHRvIHdvcmtzcGFjZQ0Kc3Rfd3JpdGUocG50cywgcGFzdGUwKHNjcmF0Y2hfZGlyLCJwbnRzLnNocCIpLCBkZWxldGVfbGF5ZXIgPSBUKQ0KDQojU21vb3RoIERFTSB3aXRoIGEgR2F1c3NpYW4gRmlsdGVyDQpzeXN0ZW0ocGFzdGUocGFzdGUod2J0X2RpciksIA0KICAgICAgICAgICAgICItcj1HYXVzc2lhbkZpbHRlciIsIA0KICAgICAgICAgICAgIHBhc3RlMCgiLS13ZD0iLHNjcmF0Y2hfZGlyKSwNCiAgICAgICAgICAgICAiLWk9J2RlbS50aWYnIiwgDQogICAgICAgICAgICAgIi1vPSdkZW1fZmlsdGVyJyIsDQogICAgICAgICAgICAgIi0tc2lnbWE9MyIpKQ0KDQojRmlsbCAic2luZ2xlIGNlbGwiIGRlcHJlc3Npb25zDQpzeXN0ZW0ocGFzdGUocGFzdGUod2J0X2RpciksDQogICAgICAgICAgICAgICItcj1GaWxsU2luZ2xlQ2VsbFBpdHMiLA0KICAgICAgICAgICAgICBwYXN0ZTAoIi0td2Q9IixzY3JhdGNoX2RpciksDQogICAgICAgICAgICAgICItLWRlbT0nZGVtX2ZpbHRlci50aWYnIiwNCiAgICAgICAgICAgICAgIi1vPSdkZW1fYnJlYWNoX21pbm9yLnRpZiciKSkNCg0KI0JyZWFjaCBsYXJnZXIgZGVwcmVzc2lvbnMNCnN5c3RlbShwYXN0ZShwYXN0ZSh3YnRfZGlyKSwgDQogICAgICAgICAgICAgIi1yPUJyZWFjaERlcHJlc3Npb25zIiwgDQogICAgICAgICAgICAgcGFzdGUwKCItLXdkPSIsc2NyYXRjaF9kaXIpLA0KICAgICAgICAgICAgICItLWRlbT0nZGVtX2JyZWFjaF9taW5vci50aWYnIiwgDQogICAgICAgICAgICAgIi1vPSdkZW1fYnJlYWNoX21ham9yLnRpZiciKSkNCg0KI0NyZWF0ZSBGbG93IEFjY3VtdWxhdGlvbiBSYXN0ZXINCnN5c3RlbShwYXN0ZShwYXN0ZSh3YnRfZGlyKSwgDQogICAgICAgICAgICAgIi1yPUQ4Rmxvd0FjY3VtdWxhdGlvbiIsIA0KICAgICAgICAgICAgICItLW91dF90eXBlPSdjZWxscyciLA0KICAgICAgICAgICAgIHBhc3RlMCgiLS13ZD0iLHNjcmF0Y2hfZGlyKSwNCiAgICAgICAgICAgICAiLS1kZW09J2RlbV9icmVhY2hfbWFqb3IudGlmJyIsIA0KICAgICAgICAgICAgICItbz0nZmFjLnRpZiciKSkNCg0KI0NyZWF0ZSBTdHJlYW0gUmFzdGVyIFtmYWM+MTAwMF0NCmZhYzwtcmFzdGVyKHBhc3RlMChzY3JhdGNoX2RpciwiZmFjLnRpZiIpKQ0KZmFjW2ZhYzwxMDAwXTwtTkENCmZhYzwtZmFjKjArMQ0KZmFjQGNyczwtQ1JTKHApDQp3cml0ZVJhc3RlcihmYWMscGFzdGUwKHNjcmF0Y2hfZGlyLCJmbG93Z3JpZC50aWZmIiksIG92ZXJ3cml0ZT1UKQ0KIA0KI1J1biBmbG93IGRpcmVjdGlvbiANCnN5c3RlbShwYXN0ZShwYXN0ZSh3YnRfZGlyKSwNCiAgICAgICAgICAgICAiLXI9RDhQb2ludGVyIiwNCiAgICAgICAgICAgICBwYXN0ZTAoIi0td2Q9IixzY3JhdGNoX2RpciksDQogICAgICAgICAgICAgIi0tZGVtPSdkZW1fYnJlYWNoX21ham9yLnRpZiciLA0KICAgICAgICAgICAgICItbz0nZmRyLnRpZiciLA0KICAgICAgICAgICAgICItLW91dF90eXBlPXNjYSIpKQ0KDQojQ3JlYXRlIHBvdXIgcG50IHJhc3Rlcg0Kc3lzdGVtKHBhc3RlKHBhc3RlKHdidF9kaXIpLA0KICAgICAgICAgICAgICItcj1WZWN0b3JQb2ludHNUb1Jhc3RlciIsDQogICAgICAgICAgICAgcGFzdGUwKCItLXdkPSIsc2NyYXRjaF9kaXIpLA0KICAgICAgICAgICAgICItaT0ncG50cy5zaHAnIiwNCiAgICAgICAgICAgICAiLS1maWVsZD1GaWRBY3RsIiwNCiAgICAgICAgICAgICAiLW89cHAudGlmIiwNCiAgICAgICAgICAgICAiLS1hc3NpZ249bWluIiwNCiAgICAgICAgICAgICAiLS1ub2RhdGEiLA0KICAgICAgICAgICAgICItLWJhc2U9ZGVtLnRpZiIpKQ0KDQojSmVuc29uIFNuYXAgUG91ciBwb2ludA0Kc3lzdGVtKHBhc3RlKHBhc3RlKHdidF9kaXIpLA0KICAgICAgICAgICAgICItcj1KZW5zb25TbmFwUG91clBvaW50cyIsDQogICAgICAgICAgICAgcGFzdGUwKCItLXdkPSIsc2NyYXRjaF9kaXIpLA0KICAgICAgICAgICAgICItLXBvdXJfcHRzPSdwcC50aWYnIiwNCiAgICAgICAgICAgICAiLS1zdHJlYW1zPSdmbG93Z3JpZC50aWYnIiwNCiAgICAgICAgICAgICAiLW89J3BwX3NuYXAudGlmIiwNCiAgICAgICAgICAgICAiLS1zbmFwX2Rpc3Q9MTAwMCINCikpDQoNCiNDb252ZXJ0IGJhY2sgdG8gcG9pbnQgZmlsZQ0Kc25hcGdyaWQ8LXJhc3RlcihwYXN0ZTAoc2NyYXRjaF9kaXIsInBwX3NuYXAudGlmIikpDQpzbmFwcG50czwtZGF0YS5mcmFtZShyYXN0ZXJUb1BvaW50cyhzbmFwZ3JpZCwgZnVuPWZ1bmN0aW9uKHgpe3g+MH0pKQ0Kc25hcHBudHM8LXN0X2FzX3NmKHNuYXBwbnRzLA0KICAgICAgICAgICAgY29vcmRzPWMoIngiLCJ5IiksDQogICAgICAgICAgICBjcnM9cGFzdGUoZGVtQGNycykpDQoNCiNFeHBvcnQgcG9pbnQgYmFjayB0byBzY3JhdGNoIHdvcmtzcGFjZQ0Kc3Rfd3JpdGUoc25hcHBudHMsIHBhc3RlMChzY3JhdGNoX2Rpciwic25hcC5zaHAiKSwgZGVsZXRlX2xheWVyID0gVCkNCiAgICANCiNXYXRlcnNoZWQgVG9vbA0Kc3lzdGVtKHBhc3RlKHBhc3RlKHdidF9kaXIpLCANCiAgICAgICAgICAgICAiLXI9V2F0ZXJzaGVkIiwgDQogICAgICAgICAgICAgcGFzdGUwKCItLXdkPSIsc2NyYXRjaF9kaXIpLA0KICAgICAgICAgICAgICItLWQ4X3BudHI9J2Zkci50aWYnIiwNCiAgICAgICAgICAgICAiLS1wb3VyX3B0cz0nc25hcC5zaHAnIiwgDQogICAgICAgICAgICAgcGFzdGUwKCItbz0nd2F0ZXJzaGVkLnRpZiciKSkpDQoNCiNJbXBvcnQgd2F0ZXJzaGVkIHJhc3RlciBpbnRvIFIgZW52aXJvbm1lbnQNCndzX2dyaWQ8LXJhc3RlcihwYXN0ZTAoc2NyYXRjaF9kaXIsIndhdGVyc2hlZC50aWYiKSwgb3ZlcndyaXRlPVQpDQoNCiNEZWZpbmUgaW5kaXZpZHVhbCB3YXRlcnNoZWRzDQp3czExMDwtd3NfZ3JpZA0KICB3czExMFt3czExMD09Ml08LU5BDQp3czEwOTwtd3NfZ3JpZA0KICB3czEwOVt3czEwOT09MV08LU5BDQogIHdzMTA5W3dzMTA5PT0yXTwtMQ0KICANCiNjb252ZXJ0IHRvIHNoYXBlcw0Kd2F0ZXJzaGVkczwtcmFzdGVyVG9Qb2x5Z29ucyh3c19ncmlkLCBkaXNzb2x2ZSA9IFQpDQogIHdhdGVyc2hlZHM8LXN0X2FzX3NmKHdhdGVyc2hlZHMsIGNycz1wKQ0KICANCiNFeHBvcnQgc2hhcGVzDQp3cml0ZVJhc3Rlcih3c19ncmlkICwgcGFzdGUwKGRhdGFfZGlyLCAid2F0ZXJzaGVkcy50aWYiKSwgb3ZlcndyaXRlPVQpDQpzdF93cml0ZSh3YXRlcnNoZWRzLCBwYXN0ZTAoZGF0YV9kaXIsICJ3YXRlcnNoZWRzLnNocCIpLCBkZWxldGVfbGF5ZXIgPSBUKQ0KICANCiNTYXZlIGltYWdlDQpzYXZlLmltYWdlKHBhc3RlMChkYXRhX2Rpciwnd2F0ZXJzaGVkX2RlbGluZWF0aW9uLlJEYXRhJykpDQoNCmBgYA0KDQo=</div>
 
 
 
