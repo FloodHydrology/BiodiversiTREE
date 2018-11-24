@@ -1,6 +1,12 @@
 ---
-title: "R Notebook"
-output: html_notebook
+title: "Geospatial Analysis"
+output:
+  html_document:
+    df_print: paged
+    toc: yes
+  html_notebook:
+    toc: yes
+    toc_float: yes
 ---
 #Setup Workspace
 In this code block, we define directory locations, download "required" libraries, and importing data.   
@@ -10,6 +16,7 @@ remove(list=ls())
 
 #Define directories of interest
 data_dir    <- "//storage.research.sesync.org/njones-data/Research Projects/BiodiversiTREE/spatial_analysis/II_work/"
+output_dir  <- "//storage.research.sesync.org/njones-data/Research Projects/BiodiversiTREE/spatial_analysis/III_output/"
 scratch_dir <- "C:\\ScratchWorkspace\\"
 wbt_dir     <- "C:/WBT/whitebox_tools"
 
@@ -21,6 +28,7 @@ library('dygraphs')
 library('xts')
 library('raster')
 library('sf')
+library('tmap')
 
 #define spatial projection
 p<-c("+proj=utm +zone=18 +ellps=GRS80 +datum=NAD83 +units=m +no_defs")
@@ -32,6 +40,18 @@ dem<-raster(paste0(data_dir, "dem_serc"))
   dem<-projectRaster(dem, crs = CRS(p))
 pnts<-st_read(paste0(data_dir, "outlet_points_utm.shp"))
   pnts<-st_transform(pnts, crs = p)
+plots<-st_read(paste0(data_dir,"plots_2015.shp"))
+  plots<-st_transform(plots, crs=p)
+soils<-st_read(paste0(data_dir,"SSURGO/spatial/soilmu_a_aoi.shp"))
+  soils_data<-read.csv(paste0(data_dir,"soils_data.csv"))
+  soils_data<-soils_data %>% select(MUKEY=Mapunit_Key,
+                                    map_unit=Mapunit_Symbol,
+                                    hydro=Hydrologic_Group_Dominant_Conditions)
+  soils$MUKEY<-as.numeric(paste(soils$MUKEY))
+  soils<-left_join(soils, soils_data, by='MUKEY')  
+  soils<-st_transform(soils, crs= p)
+  soils<-st_crop(soils, y=st_bbox(plots))
+  soils$MUKEY<-paste(soils$MUKEY)
 
 #Save image
 save.image(paste0(data_dir,'setup.RData'))  
@@ -39,8 +59,8 @@ save.image(paste0(data_dir,'setup.RData'))
 
 
 #Watershed Delineation
-In this code chunk, we use Whitebox GAT tools [WBT] to delineate the watershed. To do this, we fiirst need to download the WBT exacutable and place it in the C:\\ directory.  We also need to create a workspace directory.  [Note, both of these locations were defined in the 'setup' chunk above.]  To use WBT, export the raster from the R environment into the workspace directory. Then, execute WBT commands using system calls. Once WBT tasks are complete, then import updated raster file back into the R enviornment. Easy peasy. 
-```{r}
+In this code chunk, we use Whitebox GAT tools [WBT] to delineate the watersheds. To do this, we first need to download the WBT exacutable and place it in the C:\\ directory.  We also need to create a scratch workspace directory.  [Note, both of these locations were defined in the 'setup' chunk above.]  To use WBT, export the raster from the R environment into the workspace directory. Then, execute WBT commands using system calls. Once WBT tasks are complete, then import updated raster file back into the R enviornment. Easy peasy. 
+```{r watershed_delineation, message=F}
 #Write DEM to workspace
 dem<-na.omit(dem)
 dem<-dem+1000
@@ -149,10 +169,122 @@ watersheds<-rasterToPolygons(ws_grid, dissolve = T)
   
 #Export shapes
 writeRaster(ws_grid , paste0(data_dir, "watersheds.tif"), overwrite=T)
-st_write(watersheds, paste0(data_dir, "watersheds.shp"), delete_layer = T)
+st_write(watersheds, paste0(output_dir, "watersheds.shp"), delete_layer = T)
   
 #Save image
 save.image(paste0(data_dir,'watershed_delineation.RData'))
+```
+
+#Plot Charactersitics
+In this code chunk, the goal is to tabulate relevant topographic and soil propoerties for each plot
+
+```{r twi_analysis, message=F}
+#Soils Data~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+plots<-st_join(plots, soils, largest=T)
+
+#Topographic Wetness index~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#Export dem to scratchworkspace
+writeRaster(dem, paste0(scratch_dir, "dem.tif"), overwrite=T)
+
+#Smooth DEM with a Gaussian Filter
+system(paste(paste(wbt_dir), 
+             "-r=GaussianFilter", 
+             paste0("--wd=",scratch_dir),
+             "-i='dem.tif'", 
+             "-o='dem_filter'",
+             "--sigma=3"))
+
+#Fill "single cell" depressions
+system(paste(paste(wbt_dir),
+              "-r=FillSingleCellPits",
+              paste0("--wd=",scratch_dir),
+              "--dem='dem_filter.tif'",
+              "-o='dem_breach_minor.tif'"))
+
+#Breach larger depressions
+system(paste(paste(wbt_dir), 
+             "-r=BreachDepressions", 
+             paste0("--wd=",scratch_dir),
+             "--dem='dem_breach_minor.tif'", 
+             "-o='dem_breach_major.tif'"))
+
+#Create Flow Accumulation Raster
+system(paste(paste(wbt_dir), 
+             "-r=D8FlowAccumulation", 
+             "--out_type='cells'",
+             paste0("--wd=",scratch_dir),
+             "--dem='dem_breach_major.tif'", 
+             "-o='fac.tif'"))
+
+#Eatimate slope
+system(paste(paste(wbt_dir), 
+             "-r=Slope",
+             "-i=dem.tif",
+             "-o=slope.tif",
+             paste0("--wd=",scratch_dir)))
+
+#Eatimate TWI
+system(paste(paste(wbt_dir), 
+             paste0("--wd=",scratch_dir),
+             "-r=WetnessIndex",
+             "--slope=slope.tif",
+             "--sca=fac.tif",
+             "-o=twi.tif"))
+
+#Read into R Environmnet
+e<-extent(plots)
+twi<-raster(paste0(scratch_dir,"twi.tif"))
+twi<-crop(twi, c(e[1],e[3],e[2],e[4]))
+
+#Create function to estimate max TWI based on plot
+fun<-function(n){
+  #select plot
+  site<-plots[n,]
+  
+  #Crop twi raster to area
+  twi<-mask(twi, site)
+  
+  #Estimate mean twi
+  mean<-cellStats(twi,mean)
+  max<-cellStats(twi,max)
+  
+  #export
+  c(site$plot, mean, max)
+}
+
+#Estimate twi and merge with plots
+twi<-lapply(seq(1,dim(plots)[1]), fun)
+twi<-data.frame(do.call(rbind, twi))
+  colnames(twi)<-c("Plot_1", "twi_mean", "twi_max")
+plots<-left_join(plots, twi, by='Plot_1')
+
+#Export shapefile
+st_write(plots, paste0(output_dir,"plots.shp"), delete_layer = T)
+
+#save image
+save.image(paste0(data_dir,'plot_characterization.RData'))
+
+#Plot!
+tmap_mode('plot')
+tm1<-tm_shape(plots) +
+  tm_polygons("twi_mean", palette = "Blues", style = 'quantile', breaks=8) +
+  tm_layout(frame = F, legend.format = list(digits=1))
+tm2<-tm_shape(plots) +
+  tm_polygons("twi_max", palette = "Blues", style = 'quantile', breaks=8) +
+  tm_layout(frame = F, legend.format = list(digits=1))
+tm3<-tm_shape(plots) +
+  tm_polygons("hydro", palette = "RdYlBu", style = 'quantile', breaks=2) +
+  tm_layout(frame = F)
+plots$map_unit<-paste(plots$map_unit)
+tm4<-tm_shape(plots) +
+  tm_polygons("map_unit", palette = "Set1", style = 'quantile', breaks=8) +
+  tm_layout(frame = F)
+tmap_arrange(tm1, tm2, tm3, tm4)
 
 ```
+
+
+
+
+
 
