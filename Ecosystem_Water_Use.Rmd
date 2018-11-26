@@ -1,13 +1,203 @@
 ---
-title: "R Notebook"
-output: html_notebook
+title: "Ecosystem Water Use"
+output:
+  html_document:
+    df_print: paged
+    toc: yes
+  html_notebook:
+    toc: yes
+    toc_float: yes
 ---
+#Setup
+```{r setup, message=F, cache=T}
+#Clear working dir
+remove(list=ls())
 
+#Define directories of interest
+home_dir    <- "//nfs/njones-data/Research Projects/BiodiversiTREE/"
+data_dir    <- paste0(home_dir,"data/BDT_Sensor_Data/Export_data/Export_soil_2017/")
+sp_data_dir <- paste0(home_dir,"spatial_analysis/III_output/")
+ 
+#Download required libraries
+library('data.table')    #Data wrangling
+library('tidyverse')     #Data wrangling
+library('lubridate')     #Data wrangling
+library('xts')           #Data wrangling
+library('raster')        #Spatial Analysis
+library('sf')            #Spatial Analysis
+library('tmap')          #Plotting spatial data
+library('dygraphs')      #Interactive Plotting
+```
+
+#Data Organization
+Data wrangling!!!  [Code orginally written by Jamie Pullen, SERC]
+```{r data_wrangling, message=F, cache=T}
+#list all files in the folder
+all.files <- list.files(path=data_dir, pattern = ".csv")
+
+#read these files into a list
+dt <- lapply(paste0(data_dir,all.files), fread, sep=",")
+
+#combine into one data.table
+dt <- rbindlist(dt)
+setkey(dt, time2, height, plot)
+
+#Organize time collumns
+dt<-subset(dt,grepl("20..-..-.. ..:..:..", dt$time2))
+dt$time2 <- ymd_hms(dt$time2, tz="America/Cancun")
+dt$jday  <- yday(dt$time2)
+dt$hour  <- hour(dt$time2)
+dt$min   <- minute(dt$time2)
+
+#remove sensors that are not working (ie if the first height value is NA then all the other heights are also invalid, even if they display data), then remove -7999 values (and other weird values) and change to NA. 
+dt %<>%
+  mutate(vwc = replace(vwc, which(vwc<(-100)), NA), 
+         temp = replace(temp, which(temp<(-100)), NA),
+         sal = replace(sal, which(sal<(-100)), NA)) %>%
+  group_by(plot, subplot, time2) %>%
+  filter(!any(is.na(temp))) %>%
+  filter(any(temp>0))
+
+#Plot all data by date
+dt %>% 
+  group_by(jday, height) %>%
+  summarise(med  = median(vwc, na.rm=T),
+            upr  = quantile(vwc, 0.975, na.rm=T),
+            lwr  = quantile(vwc, 0.025, na.rm=T),
+            time = max(time2)) %>%
+  ggplot(aes(x=time,y=med)) +
+  geom_ribbon(aes(ymin=lwr, ymax=upr), fill="grey70") +
+  geom_line()+
+  facet_wrap(.~(height*-1)) +
+  theme_bw()
+    
+```
+
+#Soil Water Volume Time Series
 ```{r}
+#Estimate height of soil collum [ie the control volume] around each depth
+layers<-data.frame(height = c(-2, -12, -22, -32, -42, -52, -62, -72, -82), 
+                   dz    =  c(7 ,  10,  10,  10,  10,  10,  10,  10,  10))
 
+#join to dt
+dt <- left_join(dt, layers, by='height')
 
-Ra<-c(15,20.4,27.2,34.7,39.7,41.9,40.8,36.7,30,22.5,16.3,13.6)
+#estimate soil water volume for each time step
+dt<-dt %>%
+  mutate(tsm_z = (vwc/100)*dz) %>%
+  group_by(plot, subplot, time2) %>%
+  summarise(tsm=sum(tsm_z, na.rm=T))
 
+#Filter data
+dt<-na.omit(dt)
+dt<-dt %>% filter(tsm<60)
+dt<-dt %>% filter(time2>as.POSIXct("2017-09-25"))
+
+#Plot
+dt %>%
+  filter(tsm<60) %>%
+  group_by(time2) %>%
+  summarize(med  = median(tsm, na.rm=T),
+            upr  = quantile(tsm, 0.975, na.rm=T),
+            lwr  = quantile(tsm, 0.025, na.rm=T)) %>%
+  ggplot(aes(x=time2,y=med)) +
+    geom_ribbon(aes(ymin=lwr, ymax=upr), fill="grey70", alpha=0.75) +
+    geom_line()+
+    theme_bw()
+```
+
+#Soil ET Time Series
+```{r}
+#Read precip data
+precip<-read.csv(paste0(home_dir, "data/climate/precip.csv")) %>% 
+  dplyr::select(DATE, PRCP) %>% 
+  rename(date=DATE, p_mm = PRCP) %>%
+  mutate(date=as.POSIXct(date)) %>%
+  filter(date>as.POSIXct("2017-09-25"))
+
+#Estimate rainfree periods
+precip %<>%
+  mutate(rain_day    = if_else(precip$p_mm>0, 1,0), 
+         rain_plus   = lead(rain_day), 
+         rain_minus  = lag(rain_day)) %>%
+  group_by(date) %>%
+  summarise(rain_period = sum(rain_day, rain_plus, rain_minus)) %>%
+  filter(rain_period==0) %>% 
+  mutate(year = year(date), 
+         yday = yday(date)) %>%
+  dplyr::select(year, yday)
+
+#Correct date time [eventually move this up?]
+output<-dt %>% mutate(time2 = time2 + 3600*5)
+
+#Add time component to dt
+output<-output %>% mutate(year=year(time2),
+                          yday=yday(time2),
+                          hour=hour(time2),
+                          min=minute(time2))
+
+#Estimate hourly averages
+output<-output %>% 
+  group_by(plot, subplot, year, yday, hour) %>%
+  summarise(tsm=mean(tsm, na.rm=T))
+
+#Estimate daily ET
+output<-output %>% 
+  #Estimate daily metrics
+  group_by(plot, subplot, year, yday) %>%
+  filter(any(hour==0)) %>%  #Select days with value at midnight
+  filter(any(hour==4)) %>%  #Select days with value at 6AM
+  summarise(tsm0  = tsm[hour==0],
+            slope = (tsm[hour==4]-tsm[hour==0])/4)  %>%
+  mutate(tsm1 = lead(tsm0)) %>%
+  #Calculate daily ET
+  mutate(ET=tsm0-tsm1+(24*slope)) %>%
+  #Group by plot (2 sensors per plot)
+  group_by(plot, year, yday) %>%
+  summarise(ET=mean(ET))
+  
+#Filter rain days
+output <- output %>%
+  right_join(., precip, by=c("year", "yday")) %>%
+  filter(abs(ET)<0.5)
+
+#Orgnzize by date
+output<-output %>%
+  mutate(date  = as.POSIXct(paste0(year,"-01-01"))+86400*(yday-1),
+         ET  = ET) 
+
+#Plot for funzies
+test<-output
+  test<-test[abs(test$ET)<1,]
+  test$ET<-test$ET*-10
+  test<-test[test$ET>-1,]
+  #test<-test[test$yday>80,]
+test %>%
+  group_by(date) %>%
+  summarize(med  = median(ET, na.rm=T),
+            upr  = quantile(ET, 0.975, na.rm=T),
+            lwr  = quantile(ET, 0.025, na.rm=T)) %>%
+  filter(med<1.9) %>%
+  filter(med>0) %>%
+  ggplot(aes(x=date,y=med)) +
+    geom_errorbar(aes(ymin=lwr, ymax=upr))+
+    geom_point() +
+    geom_smooth(col="black", lty=2)+
+    theme_bw() + 
+    labs(x="Date", y="Ecosystem Water Use [mm/day]")
 
 ```
 
+
+#ET/PET Estimate
+```{r pet}
+
+
+Ra<-c(15,20.4,27.2,34.7,39.7,41.9,40.8,36.7,30,22.5,16.3,13.6)
+```
+
+
+#Mixed Effect Modeling
+```{r}
+
+```
