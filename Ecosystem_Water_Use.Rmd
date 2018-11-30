@@ -22,11 +22,7 @@ sp_data_dir <- paste0(home_dir,"spatial_analysis/III_output/")
 library('data.table')    #Data wrangling
 library('tidyverse')     #Data wrangling
 library('lubridate')     #Data wrangling
-library('xts')           #Data wrangling
-library('raster')        #Spatial Analysis
-library('sf')            #Spatial Analysis
-library('tmap')          #Plotting spatial data
-library('dygraphs')      #Interactive Plotting
+
 ```
 
 #Data Organization
@@ -50,11 +46,11 @@ dt$hour  <- hour(dt$time2)
 dt$min   <- minute(dt$time2)
 
 #remove sensors that are not working (ie if the first height value is NA then all the other heights are also invalid, even if they display data), then remove -7999 values (and other weird values) and change to NA. 
-dt %<>%
+dt <- dt %>%
   mutate(vwc = replace(vwc, which(vwc<(-100)), NA), 
          temp = replace(temp, which(temp<(-100)), NA),
          sal = replace(sal, which(sal<(-100)), NA)) %>%
-  group_by(plot, subplot, time2) %>%
+  dplyr::group_by(plot, subplot, time2) %>%
   filter(!any(is.na(temp))) %>%
   filter(any(temp>0))
 
