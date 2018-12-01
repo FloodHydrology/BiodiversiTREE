@@ -122,6 +122,9 @@ files<-list.files(paste0(working_dir, "Raw_data/raw_dir/"))
 reader.fun<-function(n){
   
   #Read data into R memory~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  #Save file name for output
+  file<-files[n]
+  
   #For now, direct read
   df<-fread(paste0(working_dir, "Raw_data/raw_dir/", files[n]), skip=4)
   colnames(df)<-colnames(fread(paste0(working_dir, "Raw_data/raw_dir/", files[n]), skip=1))
@@ -165,42 +168,48 @@ reader.fun<-function(n){
                                                   nchar(Loggernet_name))), 
                                     #If not, keep the same name
                                     Loggernet_name)) %>%
-    #Add variable addresses
-    mutate(variable.address = paste0(STATNAME,"_",str_split_fixed(Loggernet_name, "_",3)[,2]))
+    #Convert "BDT_" to "BDT" in df if needed
+    mutate(STATNAME = if_else(substr(STATNAME,1,4)=="BDT_",
+                              paste0(substr(STATNAME,1,3), 
+                                     substr(STATNAME,5,nchar(STATNAME))), 
+                              STATNAME))
   
   #Add plot data to df
-  sites<-read_csv(paste0(working_dir,"Experimental Design Table/sensors.csv")) %>%
+  key<-read_csv(paste0(working_dir,"Experimental Design Table/sensors.csv")) %>%
+    #Filter for only VWC
+    filter(Research_variable=="VWC") %>%
     #Select varibles of interest
-    select(plot, Loggernet_name, height, Research_variable) %>%
-    #make sure collumns are distinct
-    distinct(.)
-  df<-left_join(df, sites, by='Loggernet_name')
+    select(logger, plot, Loggernet_name, height, Research_variable) %>%
+    #define variable address
+    mutate(variable.address=substr(Loggernet_name,
+                                   str_locate(Loggernet_name, "_")[,1]+1,
+                                   str_locate(Loggernet_name, "_")[,1]+2))
+  
+  #join 
+  df<-left_join(df, key, by=c("STATNAME" = "logger",
+                              'Loggernet_name'='Loggernet_name'))
   
   #Add subplot data to df
-  plots<-read_csv(paste0(working_dir,"Experimental Design Table/plot.csv")) %>%
+  key<-read_csv(paste0(working_dir,"Experimental Design Table/plot.csv")) %>%
     #Select soil mositure sensors [b/c that's what we care about right now]
     filter(Sensor=='Sentek') %>%
     #tidy variable address
     rename(variable.address='variable address') %>%
-    #combine logge and variable address (this is our unique id for the join)
-    mutate(variable.address = paste0(logger,"_",variable.address)) %>%
     #select variables of interest
-    select(variable.address, subplot) %>%
-    #select distinct variables
-    distinct(.)
-  df<-df %>%
-    #Convert "BDT_" to "BDT" in df if needed
-    mutate(variable.address = if_else(substr(variable.address,1,4)=="BDT_",
-                                      paste0(substr(variable.address,1,3), 
-                                             substr(variable.address,5,nchar(variable.address))), 
-                                      variable.address)) %>%
-    #join
-    left_join(., plots, by="variable.address") 
+    select(logger, plot, subplot, variable.address)
+  #Correct key
+  key$variable.address[key$plot==4 & key$subplot=="a"]<-"d1"
+  key$variable.address[key$plot==4 & key$subplot=="b"]<-"d2"
+  key$variable.address[key$plot==16 & key$subplot=="a"]<-"g1"
+  key$variable.address[key$plot==16 & key$subplot=="b"]<-"g2"
+  
+  #Join
+  df<-left_join(df, key, by=c('STATNAME'          = 'logger' ,
+                              'plot'              = 'plot'   , 
+                              'variable.address'  = 'variable.address'))
   
   #Organize for input into database
   df<-df %>% 
-    #Delete the duplicates
-    distinct(.) %>%   
     #Create var collumn
     mutate(var=paste0(Research_variable,"_", height*-1)) %>%  
     #Select collumns of interest
@@ -212,7 +221,8 @@ reader.fun<-function(n){
            site=paste0(plot,subplot)) %>%
     #select final collumns
     select(Timestamp, site, VWC_2, VWC_12, VWC_22, VWC_32, 
-           VWC_42, VWC_52, VWC_62, VWC_72, VWC_82)
+           VWC_42, VWC_52, VWC_62, VWC_72, VWC_82) %>%
+    mutate(download= file)
   
   #Export
   df
@@ -221,9 +231,13 @@ reader.fun<-function(n){
 #Run function (note: mclappply does not work on windows machines.  Use parlapply.)
 t0<-Sys.time()
 x<-mclapply(seq(1,length(files)),reader.fun, mc.cores=16)
-output<-bind_rows(x) %>% arrange(Timestamp, site)
+output<-bind_rows(x) %>% 
+  arrange(Timestamp, site)
 tf<-Sys.time()
 tf-t0
+
+#Write output
+write.csv(output, paste0(working_dir, "output.csv"))
 
 
 #Insert into database~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

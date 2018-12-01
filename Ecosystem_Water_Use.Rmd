@@ -15,7 +15,7 @@ remove(list=ls())
 
 #Define directories of interest
 home_dir    <- "//nfs/njones-data/Research Projects/BiodiversiTREE/"
-data_dir    <- paste0(home_dir,"data/BDT_Sensor_Data/Export_data/Export_soil_2017/")
+data_dir    <- paste0(home_dir,"data/BDT_Sensor_Data/")
 sp_data_dir <- paste0(home_dir,"spatial_analysis/III_output/")
  
 #Download required libraries
@@ -26,77 +26,70 @@ library('lubridate')     #Data wrangling
 ```
 
 #Data Organization
-Data wrangling!!!  [Code orginally written by Jamie Pullen, SERC]
+Data wrangling!!!  
 ```{r data_wrangling, message=F, cache=T}
-#list all files in the folder
-all.files <- list.files(path=data_dir, pattern = ".csv")
+#Read in sensor data [see BDT_data_orgiami script for processing details]
+dt<-fread(paste0(data_dir, "output.csv"))
+dt<-as_tibble(dt)
 
-#read these files into a list
-dt <- lapply(paste0(data_dir,all.files), fread, sep=",")
+#format time
+dt<-dt %>%
+  na.omit(.) %>%
+  rename(time=Timestamp) %>%
+  mutate(time = ymd_hms(time)) %>%
+  mutate(time = time + 3600*5)  #Eventually need to do this correclty. 
 
-#combine into one data.table
-dt <- rbindlist(dt)
-setkey(dt, time2, height, plot)
+#wrangle data into long format
+dt<-dt %>%
+  #Gather the data
+  gather(.,depth,vwc, 4:12) %>%
+  #Convert names int depths
+  mutate(depth   = substr(depth,5, nchar(depth)),
+         plot    = str_extract(site, "\\d"), 
+         subplot = str_extract(site, "[a-z]+"))
 
-#Organize time collumns
-dt<-subset(dt,grepl("20..-..-.. ..:..:..", dt$time2))
-dt$time2 <- ymd_hms(dt$time2, tz="America/Cancun")
-dt$jday  <- yday(dt$time2)
-dt$hour  <- hour(dt$time2)
-dt$min   <- minute(dt$time2)
-
-#remove sensors that are not working (ie if the first height value is NA then all the other heights are also invalid, even if they display data), then remove -7999 values (and other weird values) and change to NA. 
-dt <- dt %>%
-  mutate(vwc = replace(vwc, which(vwc<(-100)), NA), 
-         temp = replace(temp, which(temp<(-100)), NA),
-         sal = replace(sal, which(sal<(-100)), NA)) %>%
-  dplyr::group_by(plot, subplot, time2) %>%
-  filter(!any(is.na(temp))) %>%
-  filter(any(temp>0))
-
-#Plot all data by date
-dt %>% 
-  group_by(jday, height) %>%
+#Plot soil moisture by depth
+dt %>%
+  group_by(day=floor_date(time, "day"), depth) %>%
   summarise(med  = median(vwc, na.rm=T),
             upr  = quantile(vwc, 0.975, na.rm=T),
             lwr  = quantile(vwc, 0.025, na.rm=T),
-            time = max(time2)) %>%
+            time = max(time)) %>%
   ggplot(aes(x=time,y=med)) +
   geom_ribbon(aes(ymin=lwr, ymax=upr), fill="grey70") +
   geom_line()+
-  facet_wrap(.~(height*-1)) +
+  facet_wrap(.~(depth)) +
   theme_bw()
-    
+
 ```
 
 #Soil Water Volume Time Series
 ```{r}
 #Estimate height of soil collum [ie the control volume] around each depth
-layers<-data.frame(height = c(-2, -12, -22, -32, -42, -52, -62, -72, -82), 
-                   dz    =  c(7 ,  10,  10,  10,  10,  10,  10,  10,  10))
+layers<-data.frame(depth = c(2, 12, 22, 32, 42, 52, 62, 72, 82), 
+                   dz    =  c(7 ,  10,  10,  10,  10,  10,  10,  10,  10)) %>% 
+  as_tibble(.) %>% 
+  mutate(depth=as_factor(as.character(depth)))
 
 #join to dt
-dt <- left_join(dt, layers, by='height')
+dt <- left_join(dt, layers, by='depth')
 
 #estimate soil water volume for each time step
-dt<-dt %>%
+dt <- dt %>%
   mutate(tsm_z = (vwc/100)*dz) %>%
-  group_by(plot, subplot, time2) %>%
-  summarise(tsm=sum(tsm_z, na.rm=T))
+  group_by(time,plot, subplot) %>%
+  summarise(tsm=sum(tsm_z, na.rm=T)) 
 
-#Filter data
-dt<-na.omit(dt)
-dt<-dt %>% filter(tsm<60)
-dt<-dt %>% filter(time2>as.POSIXct("2017-09-25"))
+#Save image
+save.image(paste0(home_dir,"tsm.RData"))
 
 #Plot
 dt %>%
-  filter(tsm<60) %>%
-  group_by(time2) %>%
+  group_by(day=floor_date(time, "day")) %>%
   summarize(med  = median(tsm, na.rm=T),
             upr  = quantile(tsm, 0.975, na.rm=T),
             lwr  = quantile(tsm, 0.025, na.rm=T)) %>%
-  ggplot(aes(x=time2,y=med)) +
+  ggplot(aes(x=day,y=med)) +
     geom_ribbon(aes(ymin=lwr, ymax=upr), fill="grey70", alpha=0.75) +
     geom_line()+
     theme_bw()
@@ -123,14 +116,11 @@ precip %<>%
          yday = yday(date)) %>%
   dplyr::select(year, yday)
 
-#Correct date time [eventually move this up?]
-output<-dt %>% mutate(time2 = time2 + 3600*5)
-
 #Add time component to dt
-output<-output %>% mutate(year=year(time2),
-                          yday=yday(time2),
-                          hour=hour(time2),
-                          min=minute(time2))
+output<-dt %>%     mutate(year=year(time),
+                          yday=yday(time),
+                          hour=hour(time),
+                          min=minute(time))
 
 #Estimate hourly averages
 output<-output %>% 
@@ -164,9 +154,9 @@ output<-output %>%
 
 #Plot for funzies
 test<-output
-  test<-test[abs(test$ET)<1,]
-  test$ET<-test$ET*-10
-  test<-test[test$ET>-1,]
+  #test<-test[abs(test$ET)<1,]
+  #test$ET<-test$ET*-10
+  #test<-test[test$ET>-1,]
   #test<-test[test$yday>80,]
 test %>%
   group_by(date) %>%
