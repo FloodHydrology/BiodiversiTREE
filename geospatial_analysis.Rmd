@@ -216,7 +216,7 @@ system(paste(paste(wbt_dir),
              "--dem='dem_breach_major.tif'", 
              "-o='fac.tif'"))
 
-#Eatimate slope
+#Estimate slope
 system(paste(paste(wbt_dir), 
              "-r=Slope",
              "-i=dem.tif",
